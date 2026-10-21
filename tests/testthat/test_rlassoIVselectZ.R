@@ -46,3 +46,30 @@ test_that("rlassoIVselectZ - robust variance when controls are left out of the f
   expect_equal(unname(fit$coefficients), unname(ref$coefficients[1, 1]), tolerance = 1e-8)
   expect_equal(unname(fit$se), unname(ref$se[1]), tolerance = 1e-8)
 })
+
+test_that("rlassoIVselectZ - exact solve with ill-conditioned controls", {
+  data(EminentDomain)
+  ze <- EminentDomain$logGDP$z
+  xe <- EminentDomain$logGDP$x
+  ye <- EminentDomain$logGDP$y
+  de <- EminentDomain$logGDP$d
+  fit <- rlassoIV(x = xe, d = de, y = ye, z = ze, select.X = FALSE, select.Z = TRUE)
+  # Frisch-Waugh: IV of y on d with instrument dhat, after partialling out x
+  # (x contains a constant column)
+  dhat <- predict(rlasso(x = cbind(ze, xe), y = de, post = TRUE, intercept = TRUE))
+  qx <- qr(xe)
+  expect_equal(qx$rank, ncol(xe))
+  dh.r <- qr.resid(qx, dhat)
+  d.r <- qr.resid(qx, de)
+  y.r <- qr.resid(qx, ye)
+  b <- sum(dh.r*y.r)/sum(dh.r*d.r)
+  e <- y.r - b*d.r
+  expect_equal(unname(fit$coefficients), b, tolerance = 1e-6)
+  expect_equal(unname(fit$se), sqrt(sum(dh.r^2*e^2))/abs(sum(dh.r*d.r)), tolerance = 1e-6)
+  # the estimate does not depend on the units of the controls
+  sc <- 10^seq(-3, 3, length.out = ncol(xe))
+  fit.sc <- rlassoIV(x = sweep(xe, 2, sc, "*"), d = de, y = ye, z = ze,
+                     select.X = FALSE, select.Z = TRUE)
+  expect_equal(fit.sc$coefficients, fit$coefficients, tolerance = 1e-6)
+  expect_equal(fit.sc$se, fit$se, tolerance = 1e-6)
+})
