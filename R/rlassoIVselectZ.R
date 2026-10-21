@@ -87,7 +87,7 @@ rlassoIVselectZ.default <- function(x, d, y, z, post = TRUE, intercept = TRUE, .
   residuals <- y - d %*% alpha.hat
   #Omega.hat <- t(Dhat) %*% diag(as.vector(residuals^2)) %*% Dhat  #  Dhat.e <- Dhat*as.vector(residuals);  Omega.hat <- t(Dhat.e)%*%Dhat.e
   Omega.hat <- t(Dhat) %*% (Dhat*as.vector(residuals^2))
-  Q.hat.inv <- MASS::ginv(t(d) %*% Dhat)  #solve(t(d)%*%Dhat)
+  Q.hat.inv <- MASS::ginv(t(Dhat) %*% d)  #solve(t(Dhat)%*%d)
   vcov <- Q.hat.inv %*% Omega.hat %*% t(Q.hat.inv)
   rownames(alpha.hat) <- c(colnames(d))
   colnames(vcov) <- rownames(vcov) <- rownames(alpha.hat)

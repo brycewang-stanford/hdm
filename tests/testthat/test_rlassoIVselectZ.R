@@ -27,3 +27,22 @@ test_that("rlassoIVselectZ - estimate does not depend on the location of y", {
   expect_equal(fit.shift$coefficients, fit$coefficients, tolerance = 1e-8)
   expect_equal(fit.shift$se, fit$se, tolerance = 1e-8)
 })
+
+test_that("rlassoIVselectZ - robust variance when controls are left out of the first stage", {
+  set.seed(3)
+  n <- 500
+  p <- 10
+  zc <- cbind(z1 = rnorm(n), z2 = rnorm(n))
+  xc <- matrix(rnorm(n*p), n, p, dimnames = list(NULL, paste0("x", 1:p)))
+  uc <- rnorm(n)
+  dc <- zc[, 1] + 0.5*zc[, 2] + xc[, 1] + 0.15*rowSums(xc[, -1]) + uc + rnorm(n)
+  yc <- -2*dc + rowSums(xc) + uc
+  fit <- rlassoIV(x = xc, d = dc, y = yc, z = zc, select.X = FALSE, select.Z = TRUE)
+  # some controls are not selected, so t(Dhat) %*% d is not symmetric
+  expect_true(any(!fit$selection.matrix[colnames(xc), 1]))
+  # the estimator is IV of y on (d, x) with instruments (first-stage fit, x)
+  dhat <- predict(rlasso(x = cbind(zc, xc), y = dc, post = TRUE, intercept = TRUE))
+  ref <- tsls(x = xc, d = dc, y = yc, z = dhat, intercept = TRUE, homoscedastic = FALSE)
+  expect_equal(unname(fit$coefficients), unname(ref$coefficients[1, 1]), tolerance = 1e-8)
+  expect_equal(unname(fit$se), unname(ref$se[1]), tolerance = 1e-8)
+})
