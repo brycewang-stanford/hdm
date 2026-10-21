@@ -16,7 +16,8 @@
 #' @param z set of potential instruments for the endogenous variables.
 #' Exogenous variables serve as their own instruments.
 #' @param post logical. If \code{TRUE}, post-lasso estimation is conducted.
-#' @param intercept logical. If \code{TRUE}, intercept is included in the second stage equation.
+#' @param intercept logical. If \code{TRUE}, intercept is included in the first and second stage equations
+#' (in the second stage only if \code{x} does not already contain a constant column).
 #' @param \dots arguments passed to the function \code{rlasso}.
 #' @return An object of class \code{rlassoIVselectZ} containing at least the following
 #' components: \item{coefficients}{estimated parameter vector}
@@ -69,17 +70,16 @@ rlassoIVselectZ.default <- function(x, d, y, z, post = TRUE, intercept = TRUE, .
     Dhat <- cbind(Dhat, dihat)
   }
   colnames(select.mat) <- colnames(d)
-  #if (intercept) { #?
-  #  Dhat <- cbind(Dhat, 1, x) 
-  #  d <- cbind(d, 1, x)
-  #} else {
-  #  Dhat <- cbind(Dhat, x)
-  #  d <- cbind(d, x)
-  #}
-  
-  Dhat <- cbind(Dhat, x)
-  d <- cbind(d, x)
-  
+  # the first stage includes an intercept, so the second stage needs one too
+  # (not added if x already contains a constant column)
+  if (intercept && (is.null(x) || !any(apply(x, 2, function(v) all(v == v[1]))))) {
+    Dhat <- cbind(Dhat, x, "(Intercept)" = 1)
+    d <- cbind(d, x, "(Intercept)" = 1)
+  } else {
+    Dhat <- cbind(Dhat, x)
+    d <- cbind(d, x)
+  }
+
   # calculation coefficients
   #alpha.hat <- solve(t(Dhat) %*% d) %*% (t(Dhat) %*% y)
   alpha.hat <- MASS::ginv(t(Dhat)%*%d)%*%(t(Dhat)%*%y)
